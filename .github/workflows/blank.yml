@@ -1,0 +1,61 @@
+name: Build Snow Rider APK
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download project
+        uses: actions/checkout@v4
+
+      - name: Extract Snow Rider ZIP
+        shell: bash
+        run: |
+          ZIP_FILE="SnowRiderApp_Custom_Icon.zip"
+
+          if [ ! -f "$ZIP_FILE" ]; then
+            echo "Snow Rider ZIP not found!"
+            exit 1
+          fi
+
+          mkdir extracted
+          unzip -q "$ZIP_FILE" -d extracted
+
+          PROJECT_DIR=$(find extracted -type f -name settings.gradle -printf '%h\n' | head -n 1)
+
+          if [ -z "$PROJECT_DIR" ]; then
+            echo "Android project not found!"
+            exit 1
+          fi
+
+          cp -a "$PROJECT_DIR"/. .
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.2'
+
+      - name: Create Gradle wrapper
+        run: gradle wrapper --gradle-version 8.2
+
+      - name: Build APK
+        run: ./gradlew --no-daemon assembleDebug
+
+      - name: Save APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: SnowRider-debug-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
